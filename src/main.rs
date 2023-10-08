@@ -1,15 +1,10 @@
-extern crate clap;
-extern crate colored;
-extern crate inquire;
-extern crate serde;
-extern crate serde_json;
-
 use colored::*;
 use inquire::Select;
 use serde::Deserialize;
 use std::fs;
 use std::io;
-use std::process::Command;
+use std::process::{Command, Stdio};
+mod render_config;
 
 #[derive(Deserialize)]
 struct Config {
@@ -68,23 +63,30 @@ fn comment() -> (String, String) {
 
 fn handle_git_commit(prefix: &str, title: &str, content: &str) {
     let commit_message = format!("{} {}\n\n{}", prefix, title, content);
-    let status = Command::new("git")
+    let output = Command::new("git")
         .arg("commit")
         .arg("-m")
         .arg(&commit_message)
-        .status()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
         .expect("Failed to execute git commit");
 
-    if status.success() {
+    if output.status.success() {
+        println!("{}", String::from_utf8_lossy(&output.stdout).white());
         println!("{}", "Commit successful!".green().bold());
     } else {
+        println!("{}", String::from_utf8_lossy(&output.stderr).white());
         println!("{}", "Commit failed!".red().bold().italic());
     }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    render_config::setup_inquire()?;
     let config = Config::from_file("./config.json");
     let prefix = select_prefix(config.prefixes);
     let (title, content) = comment();
     handle_git_commit(&prefix, &title, &content);
+
+    Ok(())
 }
