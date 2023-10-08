@@ -1,3 +1,7 @@
+extern crate inquire;
+extern crate colored;
+extern crate serde;
+
 use colored::*;
 use inquire::{Select, Text};
 use serde::Deserialize;
