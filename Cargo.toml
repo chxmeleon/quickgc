@@ -1,7 +1,14 @@
 [package]
 name = "quickgc"
 version = "0.1.0"
-edition = "2021"
+description = "simple style with git commit comments for personal workflow"
+author = "Chxmeleon"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/chxmeleon/quickgc-rust"
+repository = "https://github.com/chxmeleon/quickgc-rust"
+keywords = ["cli", "git"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = "2.33.3"
