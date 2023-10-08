@@ -1,0 +1,12 @@
+{
+  "prefixes": [
+    "[FEATURE]",
+    "[BUGFIX]",
+    "[BUILD]",
+    "[STYLE]",
+    "[REFACTOR]",
+    "[DOCS]",
+    "[CODEREVIEW]",
+    "[TEST]"
+  ]
+}

@@ -1,34 +1,43 @@
 extern crate clap;
 extern crate colored;
 extern crate inquire;
+extern crate serde;
+extern crate serde_json;
 
 use colored::*;
 use inquire::Select;
+use serde::Deserialize;
+use std::fs;
 use std::io;
 use std::process::Command;
 
-fn select_prefix() -> String {
-    let prefixes: Vec<&str> = vec![
-        "[FEATURE]",
-        "[BUGFIX]",
-        "[BUILD]",
-        "[STYLE]",
-        "[REFACTOR]",
-        "[DOCS]",
-        "[CODEREVIEW]",
-    ];
+#[derive(Deserialize)]
+struct Config {
+    prefixes: Vec<String>,
+}
 
-    let selection = Select::new("Select git comment prefix", prefixes).prompt();
+impl Config {
+    fn from_file(file_path: &str) -> Config {
+        let config_str = fs::read_to_string(file_path).expect("Failed to read config file");
+        serde_json::from_str(&config_str).expect("Failed to parse config file")
+    }
+}
+
+fn select_prefix(prefixes: Vec<String>) -> String {
+    let selection = Select::new("Select git comment prefix", prefixes.clone()).prompt();
 
     match selection {
         Ok(prefix) => {
-            match prefix {
-                "[FEATURE]" => println!("{}", prefix.blue()),
-                "[BUGFIX]" => println!("{}", prefix.magenta()),
-                "[BUILD]" => println!("{}", prefix.yellow()),
-                "[STYLE]" | "[CODEREVIEW]" => println!("{}", prefix.cyan()),
-                "[REFACTOR]" => println!("{}", prefix.red()),
-                "[DOCS]" => println!("{}", prefix.green()),
+            let index = prefixes.iter().position(|p| p == &prefix).unwrap_or(0);
+            match index {
+                0 => println!("{}", prefix.blue()),
+                1 => println!("{}", prefix.magenta()),
+                2 => println!("{}", prefix.yellow()),
+                3 => println!("{}", prefix.cyan()),
+                4 => println!("{}", prefix.red()),
+                5 => println!("{}", prefix.green()),
+                6 => println!("{}", prefix.purple()),
+                7 => println!("{}", prefix.white()),
                 _ => println!("{}", prefix),
             }
 
@@ -43,13 +52,13 @@ fn select_prefix() -> String {
 
 fn comment() -> (String, String) {
     let mut title = String::new();
-    println!("{}", "Write your comment:".blue().bold());
+    println!("{}", "Write your comment:".white().bold());
     io::stdin()
         .read_line(&mut title)
         .expect("Failed to read line");
 
     let mut content = String::new();
-    println!("{}", "Write your description:".yellow().bold());
+    println!("{}", "Write your description:".white().bold());
     io::stdin()
         .read_line(&mut content)
         .expect("Failed to read line");
@@ -69,12 +78,13 @@ fn handle_git_commit(prefix: &str, title: &str, content: &str) {
     if status.success() {
         println!("{}", "Commit successful!".green().bold());
     } else {
-        println!("{}", "Commit failed!".red().bold());
+        println!("{}", "Commit failed!".red().bold().italic());
     }
 }
 
 fn main() {
-    let prefix = select_prefix();
+    let config = Config::from_file("./config.json");
+    let prefix = select_prefix(config.prefixes);
     let (title, content) = comment();
     handle_git_commit(&prefix, &title, &content);
 }
