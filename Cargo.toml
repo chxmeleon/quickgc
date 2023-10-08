@@ -3,5 +3,7 @@ name = "quickgitcommit-rust"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
+clap = "2.33.3"
+colored = "2.0.0"
+inquire = "0.2.0"
