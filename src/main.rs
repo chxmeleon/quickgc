@@ -1,8 +1,7 @@
 use colored::*;
-use inquire::Select;
+use inquire::{Select, Text};
 use serde::Deserialize;
 use std::fs;
-use std::io;
 use std::process::{Command, Stdio};
 mod render_config;
 
@@ -46,19 +45,24 @@ fn select_prefix(prefixes: Vec<String>) -> String {
 }
 
 fn comment() -> (String, String) {
-    let mut title = String::new();
-    println!("{}", "Write your comment:".white().bold());
-    io::stdin()
-        .read_line(&mut title)
-        .expect("Failed to read line");
+let title = Text::new("Write your comment:")
+        .with_help_message("Enter the title of your commit")
+        .prompt()
+        .unwrap_or_else(|_| {
+            println!("{}", "No comment entered!".red());
+            std::process::exit(1);
+        });
 
-    let mut content = String::new();
-    println!("{}", "Write your description:".white().bold());
-    io::stdin()
-        .read_line(&mut content)
-        .expect("Failed to read line");
+    let content = Text::new("Write your description:")
+        .with_help_message("Enter the detailed description of your commit")
+        .prompt()
+        .unwrap_or_else(|_| {
+            println!("{}", "No description entered!".red());
+            std::process::exit(1);
+        });
 
-    (title.trim().to_string(), content.trim().to_string())
+    (title, content)
+
 }
 
 fn handle_git_commit(prefix: &str, title: &str, content: &str) {
