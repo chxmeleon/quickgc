@@ -45,7 +45,7 @@ fn select_prefix(prefixes: Vec<String>) -> String {
 }
 
 fn comment() -> (String, String) {
-let title = Text::new("Write your comment:")
+    let title = Text::new("Write your comment:")
         .with_help_message("Enter the title of your commit")
         .prompt()
         .unwrap_or_else(|_| {
@@ -62,7 +62,6 @@ let title = Text::new("Write your comment:")
         });
 
     (title, content)
-
 }
 
 fn handle_git_commit(prefix: &str, title: &str, content: &str) {
