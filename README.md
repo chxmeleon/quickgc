@@ -25,7 +25,7 @@ cargo install --path .
 Initiate QuickGC, and let it guide you through the rest. It’s interactive, intuitive, and user-friendly.
 
 ```sh
-quickgc
+zg
 ```
 
 ## 🎨 Commit Styles at Your Fingertips
@@ -39,21 +39,6 @@ QuickGC isn’t just about speed; it’s about style too. Choose from a variety 
 - `[REFACTOR]`: Revamp your code without altering its behavior.
 - `[DOCS]`: Enhance or create documentation.
 - `[TEST]`: Add tests ensuring your code’s reliability.
-
-## ⚙️ Make It Yours
-
-Every project is unique, and QuickGC adapts. Modify the `config.json` file to define your own commit styles, making QuickGC a personalized commit assistant.
-
-```
-{
-  "prefixes": [
-    "[FEATURE]",
-    "[BUILD]",
-    "[BUGFIX]"
-    // ... unleash your creativity
-  ]
-}
-```
 
 ## 💡 Contributing
 

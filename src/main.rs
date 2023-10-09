@@ -1,13 +1,11 @@
-extern crate inquire;
 extern crate colored;
+extern crate inquire;
 extern crate serde;
 
-use config::Config;
 use colored::*;
 use inquire::{Select, Text};
 use std::process::{Command, Stdio};
 
-mod config;
 mod render_config;
 
 fn select_prefix(prefixes: Vec<String>) -> String {
@@ -79,8 +77,16 @@ fn handle_git_commit(prefix: &str, title: &str, content: &str) {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     render_config::setup_inquire()?;
-    let config = Config::from_file("config.json");
-    let prefix = select_prefix(config.prefixes);
+    let prefixes = vec![
+        "[FEATURE]".to_string(),
+        "[BUGFIX]".to_string(),
+        "[BUILD]".to_string(),
+        "[STYLE]".to_string(),
+        "[REFACTOR]".to_string(),
+        "[DOCS]".to_string(),
+        "[TEST]".to_string(),
+    ];
+    let prefix = select_prefix(prefixes);
     let (title, content) = comment();
     handle_git_commit(&prefix, &title, &content);
 
