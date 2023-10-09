@@ -2,24 +2,13 @@ extern crate inquire;
 extern crate colored;
 extern crate serde;
 
+use config::Config;
 use colored::*;
 use inquire::{Select, Text};
-use serde::Deserialize;
-use std::fs;
 use std::process::{Command, Stdio};
+
+mod config;
 mod render_config;
-
-#[derive(Deserialize)]
-struct Config {
-    prefixes: Vec<String>,
-}
-
-impl Config {
-    fn from_file(file_path: &str) -> Config {
-        let config_str = fs::read_to_string(file_path).expect("Failed to read config file");
-        serde_json::from_str(&config_str).expect("Failed to parse config file")
-    }
-}
 
 fn select_prefix(prefixes: Vec<String>) -> String {
     let selection = Select::new("Select git comment prefix", prefixes.clone()).prompt();
@@ -90,7 +79,7 @@ fn handle_git_commit(prefix: &str, title: &str, content: &str) {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     render_config::setup_inquire()?;
-    let config = Config::from_file("./config.json");
+    let config = Config::from_file("config.json");
     let prefix = select_prefix(config.prefixes);
     let (title, content) = comment();
     handle_git_commit(&prefix, &title, &content);
