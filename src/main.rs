@@ -1,11 +1,15 @@
 extern crate colored;
+extern crate dirs;
 extern crate inquire;
 extern crate serde;
 
 use colored::*;
 use inquire::{Select, Text};
 use std::process::{Command, Stdio};
+use config::Config;
+use dirs::home_dir;
 
+mod config;
 mod render_config;
 
 fn select_prefix(prefixes: Vec<String>) -> String {
@@ -77,16 +81,15 @@ fn handle_git_commit(prefix: &str, title: &str, content: &str) {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     render_config::setup_inquire()?;
-    let prefixes = vec![
-        "[FEATURE]".to_string(),
-        "[BUGFIX]".to_string(),
-        "[BUILD]".to_string(),
-        "[STYLE]".to_string(),
-        "[REFACTOR]".to_string(),
-        "[DOCS]".to_string(),
-        "[TEST]".to_string(),
-    ];
-    let prefix = select_prefix(prefixes);
+
+    let home = home_dir().ok_or("Home directory not found")?;
+    let path = home.join(".config/quickgc/config.json");
+    let config_path = path
+        .to_str()
+        .ok_or("Failed to convert path to string")?;
+
+    let config = Config::from_file(config_path)?;
+    let prefix = select_prefix(config.prefixes);
     let (title, content) = comment();
     handle_git_commit(&prefix, &title, &content);
 

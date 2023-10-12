@@ -40,6 +40,29 @@ QuickGC isn’t just about speed; it’s about style too. Choose from a variety 
 - `[DOCS]`: Enhance or create documentation.
 - `[TEST]`: Add tests ensuring your code’s reliability.
 
+
+## ⚙️ Make It Yours
+
+Every project is unique, and QuickGC adapts. Modify the `config.json` file to define your own commit styles, making QuickGC a personalized commit assistant.
+
+```
+// config path: HOME_DIR/.config/quickgc/config.json 
+// Lin: /home/username
+// Win: C:\Users\username
+// Mac: /Users/username
+
+
+{
+  "prefixes": [
+    "[FEATURE]",
+    "[BUILD]",
+    "[BUGFIX]"
+    // ... unleash your creativity
+  ]
+}
+```
+
+
 ## 💡 Contributing
 
 Your insights and skills can make QuickGC even better. Feel free to open issues for bugs or feature requests, and pull requests are always welcome.
