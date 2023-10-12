@@ -15,8 +15,8 @@ cargo install quickgc
 Or, install it from the source by cloning this repository:
 
 ```sh
-git clone https://github.com/chxmeleon/quickgc-rust.git
-cd quickgc-rust
+git clone https://github.com/chxmeleon/quickgc.git
+cd quickgc
 cargo install --path .
 ```
 
@@ -47,6 +47,7 @@ Every project is unique, and QuickGC adapts. Modify the `config.json` file to de
 
 ```
 // config path: HOME_DIR/.config/quickgc/config.json 
+// HOME_DIR:
 // Lin: /home/username
 // Win: C:\Users\username
 // Mac: /Users/username
