@@ -28,7 +28,7 @@ async fn select_prefix(prefixes: Vec<String>) -> String {
                 3 => println!("{}", prefix.cyan()),
                 4 => println!("{}", prefix.red()),
                 5 => println!("{}", prefix.green()),
-                6 => println!("{}", prefix.purple()),
+                6 => println!("{}", prefix.bright_purple()),
                 7 => println!("{}", prefix.white()),
                 _ => println!("{}", prefix),
             }
@@ -77,14 +77,14 @@ async fn handle_git_commit(prefix: &str, title: &str, content: &str) {
         .await
         .expect("Failed to execute git commit");
 
-    println!("{}", String::from_utf8_lossy(&output.stdout).cyan());
+    println!("{}", String::from_utf8_lossy(&output.stdout).bright_cyan());
 
     if output.status.success() {
         println!("{}", String::from_utf8_lossy(&output.stdout).white());
-        println!("{}", "Commit successful!".green().bold());
+        println!("{}", "Commit successful!".white().on_bright_green().bold());
     } else {
         println!("{}", String::from_utf8_lossy(&output.stderr).white());
-        println!("{}", "Commit failed!".red().bold().italic());
+        println!("{}", "Commit failed!".white().on_red().bold().italic());
     }
 }
 
