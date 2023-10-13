@@ -81,7 +81,7 @@ async fn handle_git_commit(prefix: &str, title: &str, content: &str) {
 
     if output.status.success() {
         println!("{}", String::from_utf8_lossy(&output.stdout).white());
-        println!("{}", "Commit successful!".white().on_bright_green().bold());
+        println!("{}", "Commit successful!".white().on_green().bold());
     } else {
         println!("{}", String::from_utf8_lossy(&output.stderr).white());
         println!("{}", "Commit failed!".white().on_red().bold().italic());
