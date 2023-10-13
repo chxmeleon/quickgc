@@ -77,7 +77,7 @@ async fn handle_git_commit(prefix: &str, title: &str, content: &str) {
         .await
         .expect("Failed to execute git commit");
 
-    println!("{}", String::from_utf8_lossy(&output.stdout).bright_cyan());
+    println!("{}", String::from_utf8_lossy(&output.stderr).bright_cyan());
 
     if output.status.success() {
         println!("{}", String::from_utf8_lossy(&output.stdout).white());
