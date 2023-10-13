@@ -1,7 +1,8 @@
 [package]
 name = "quickgc"
-version = "0.1.5"
+version = "0.1.6"
 description = "simple style with git commit comments for personal workflow"
+edition = "2021"
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/chxmeleon/quickgc-rust"
@@ -16,6 +17,7 @@ dirs = "5.0.1"
 inquire = "0.2.0"
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.67"
+tokio = { version = "1.33.0", features = ["full"]}
 
 [[bin]]
 name = "zg"

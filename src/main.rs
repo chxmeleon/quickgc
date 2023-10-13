@@ -4,20 +4,23 @@ extern crate inquire;
 extern crate serde;
 
 use colored::*;
-use inquire::{Select, Text};
-use std::process::{Command, Stdio};
 use config::Config;
 use dirs::home_dir;
+use tokio::process::Command;
+use tokio::task;
 
 mod config;
 mod render_config;
 
-fn select_prefix(prefixes: Vec<String>) -> String {
-    let selection = Select::new("Select git comment prefix", prefixes.clone()).prompt();
+async fn select_prefix(prefixes: Vec<String>) -> String {
+    let prefixes_clone = prefixes.clone();
+    let selection = task::spawn_blocking(move || {
+        inquire::Select::new("Select git comment prefix", prefixes.clone()).prompt()
+    }).await.expect("Failed to run blocking code");
 
     match selection {
         Ok(prefix) => {
-            let index = prefixes.iter().position(|p| p == &prefix).unwrap_or(0);
+            let index = prefixes_clone.iter().position(|p| p == &prefix).unwrap_or(0);
             match index {
                 0 => println!("{}", prefix.blue()),
                 1 => println!("{}", prefix.magenta()),
@@ -39,18 +42,23 @@ fn select_prefix(prefixes: Vec<String>) -> String {
     }
 }
 
-fn comment() -> (String, String) {
-    let title = Text::new("Write your comment:")
-        .with_help_message("Enter the title of your commit")
-        .prompt()
+async fn comment() -> (String, String) {
+    let title = task::spawn_blocking(|| {
+        inquire::Text::new("Write your comment:")
+            .with_help_message("Enter the title of your commit")
+            .prompt()
+    }).await.expect("Failed to run blocking code")
         .unwrap_or_else(|_| {
             println!("{}", "No comment entered!".red());
             std::process::exit(1);
         });
 
-    let content = Text::new("Write your description:")
-        .with_help_message("Enter the detailed description of your commit")
-        .prompt()
+
+    let content = task::spawn_blocking(|| { 
+        inquire::Text::new("Write your description:")
+            .with_help_message("Enter the detailed description of your commit")
+            .prompt()
+    }).await.expect("Failed to run blocking code")
         .unwrap_or_else(|_| {
             println!("{}", "No description entered!".red());
             std::process::exit(1);
@@ -59,15 +67,14 @@ fn comment() -> (String, String) {
     (title, content)
 }
 
-fn handle_git_commit(prefix: &str, title: &str, content: &str) {
+async fn handle_git_commit(prefix: &str, title: &str, content: &str) {
     let commit_message = format!("{} {}\n\n{}", prefix, title, content);
     let output = Command::new("git")
         .arg("commit")
         .arg("-m")
         .arg(&commit_message)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         .output()
+        .await
         .expect("Failed to execute git commit");
 
     if output.status.success() {
@@ -79,7 +86,9 @@ fn handle_git_commit(prefix: &str, title: &str, content: &str) {
     }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     render_config::setup_inquire()?;
 
     let home = home_dir().ok_or("Home directory not found")?;
@@ -89,9 +98,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Failed to convert path to string")?;
 
     let config = Config::from_file(config_path)?;
-    let prefix = select_prefix(config.prefixes);
-    let (title, content) = comment();
-    handle_git_commit(&prefix, &title, &content);
+    let prefix = select_prefix(config.prefixes).await;
+    let (title, content) = comment().await;
+    handle_git_commit(&prefix, &title, &content).await;
 
     Ok(())
 }
