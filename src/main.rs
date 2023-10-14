@@ -7,6 +7,7 @@ use colored::*;
 use config::Config;
 use dirs::home_dir;
 use tokio::process::Command;
+use tokio::io::{self, BufReader, AsyncBufReadExt};
 use tokio::task;
 
 mod config;
@@ -67,25 +68,34 @@ async fn comment() -> (String, String) {
     (title, content)
 }
 
-async fn handle_git_commit(prefix: &str, title: &str, content: &str) {
+async fn handle_git_commit(prefix: &str, title: &str, content: &str) -> io::Result<()> {
     let commit_message = format!("{} {}\n\n{}", prefix, title, content);
-    let output = Command::new("git")
+    let mut child = Command::new("git")
         .arg("commit")
         .arg("-m")
         .arg(&commit_message)
-        .output()
-        .await
+        .stderr(std::process::Stdio::piped())
+        .spawn()
         .expect("Failed to execute git commit");
 
-    println!("{}", String::from_utf8_lossy(&output.stderr).bright_cyan());
+    if let Some(stderr) = child.stderr.take() {
+        let mut reader = BufReader::new(stderr).lines();
 
-    if output.status.success() {
-        println!("{}", String::from_utf8_lossy(&output.stdout).white());
+        while let Some(line) = reader.next_line().await? {
+            println!("{}", line.bright_cyan());
+        }
+    }
+
+
+    let status = child.wait().await.expect("Failed to wait on child");
+
+    if status.success() {
         println!("{}", "Commit successful!".black().on_green().bold());
     } else {
-        println!("{}", String::from_utf8_lossy(&output.stderr).white());
         println!("{}", "Commit failed!".white().on_red().bold().italic());
     }
+
+    Ok(())
 }
 
 
@@ -102,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::from_file(config_path)?;
     let prefix = select_prefix(config.prefixes).await;
     let (title, content) = comment().await;
-    handle_git_commit(&prefix, &title, &content).await;
+    let _ = handle_git_commit(&prefix, &title, &content).await;
 
     Ok(())
 }
