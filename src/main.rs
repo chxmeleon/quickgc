@@ -1,8 +1,3 @@
-extern crate colored;
-extern crate dirs;
-extern crate inquire;
-extern crate serde;
-
 use colored::*;
 use config::Config;
 use dirs::home_dir;
@@ -13,34 +8,28 @@ use tokio::task;
 mod config;
 mod render_config;
 
-async fn select_prefix(prefixes: Vec<String>) -> String {
+async fn select_prefix(prefixes: Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
     let prefixes_clone = prefixes.clone();
     let selection = task::spawn_blocking(move || {
-        inquire::Select::new("Select git comment prefix", prefixes.clone()).prompt()
-    }).await.expect("Failed to run blocking code");
+        inquire::Select::new("Select git comment prefix", prefixes).prompt()
+    }).await??;
 
-    match selection {
-        Ok(prefix) => {
-            let index = prefixes_clone.iter().position(|p| p == &prefix).unwrap_or(0);
-            match index {
-                0 => println!("{}", prefix.blue()),
-                1 => println!("{}", prefix.magenta()),
-                2 => println!("{}", prefix.yellow()),
-                3 => println!("{}", prefix.cyan()),
-                4 => println!("{}", prefix.red()),
-                5 => println!("{}", prefix.green()),
-                6 => println!("{}", prefix.bright_purple()),
-                7 => println!("{}", prefix.white()),
-                _ => println!("{}", prefix),
-            }
+    let colors = [
+        Color::Blue,
+        Color::Magenta,
+        Color::Yellow,
+        Color::Cyan,
+        Color::Red,
+        Color::Green,
+        Color::BrightMagenta,
+        Color::White,
+    ];
 
-            prefix.to_string()
-        }
-        Err(_) => {
-            println!("{}", "No prefix selected!".red());
-            std::process::exit(1);
-        }
-    }
+    let index = prefixes_clone.iter().position(|p| p == &selection).unwrap_or(0);
+    let color = colors.get(index).unwrap_or(&Color::White);
+
+    println!("{}", selection.color(*color));
+    Ok(selection)
 }
 
 async fn comment() -> (String, String) {
@@ -74,25 +63,51 @@ async fn handle_git_commit(prefix: &str, title: &str, content: &str) -> io::Resu
         .arg("commit")
         .arg("-m")
         .arg(&commit_message)
+        .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .spawn()
-        .expect("Failed to execute git commit");
+        .spawn()?;
 
-    if let Some(stderr) = child.stderr.take() {
+    let stderr = if let Some(stderr) = child.stderr.take() {
         let mut reader = BufReader::new(stderr).lines();
+        let mut stderr_content = String::new();
 
         while let Some(line) = reader.next_line().await? {
+            stderr_content.push_str(&line);
+            stderr_content.push('\n');
             println!("{}", line.bright_cyan());
         }
-    }
 
+        Some(stderr_content)
+    } else {
+        None
+    };
 
-    let status = child.wait().await.expect("Failed to wait on child");
+    let stdout = if let Some(stdout) = child.stdout.take() {
+        let mut reader = BufReader::new(stdout).lines();
+        let mut stdout_content = String::new();
+
+        while let Some(line) = reader.next_line().await? {
+            stdout_content.push_str(&line);
+            stdout_content.push('\n');
+        }
+
+        Some(stdout_content)
+    } else {
+        None
+    };
+
+    let status = child.wait().await?;
 
     if status.success() {
-        println!("{}", "Commit successful!".black().on_green().bold());
+        println!("\n{}", "Commit successful!".black().on_green().bold());
+        if let Some(stdout_content) = stdout {
+            println!("\n{}", stdout_content.white().bold());
+        }
     } else {
-        println!("{}", "Commit failed!".white().on_red().bold().italic());
+        println!("\n{}", "Commit failed!".white().on_red().bold().italic());
+        if let Some(stderr_content) = stderr {
+            println!("Error:\n{}", stderr_content.white().on_red().bold());
+        }
     }
 
     Ok(())
@@ -110,9 +125,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Failed to convert path to string")?;
 
     let config = Config::from_file(config_path)?;
-    let prefix = select_prefix(config.prefixes).await;
+    let prefix = select_prefix(config.prefixes).await?;
     let (title, content) = comment().await;
-    let _ = handle_git_commit(&prefix, &title, &content).await;
+    handle_git_commit(&prefix, &title, &content).await?;
 
     Ok(())
 }
