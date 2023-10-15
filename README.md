@@ -55,10 +55,10 @@ Every project is unique, and QuickGC adapts. Modify the `config.json` file to de
 
 
 {
-  "prefixes": [
-    "[FEATURE]",
-    "[BUILD]",
-    "[BUGFIX]"
+  "types": [
+    "custom1",
+    "custom2",
+    "custom3"
     // ... unleash your creativity
   ]
 }
