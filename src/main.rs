@@ -8,6 +8,28 @@ use tokio::task;
 mod config;
 mod render_config;
 
+async fn get_user_input(prompt: &str, help_message: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let prompt = prompt.to_string();
+    let help_message = help_message.to_string();
+
+    let input = task::spawn_blocking(move || {
+        inquire::Text::new(&prompt)
+            .with_help_message(&help_message)
+            .prompt()
+    }).await??;
+
+    Ok(input)
+}
+
+async fn is_breaking_change() -> Result<bool, Box<dyn std::error::Error>> {
+    let input = task::spawn_blocking(move || {
+        inquire::Confirm::new("Is this a breaking change?")
+            .with_default(false)
+            .prompt()
+    }).await??;
+    Ok(input)
+}
+
 async fn select_prefix(prefixes: Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
     let prefixes_clone = prefixes.clone();
     let selection = task::spawn_blocking(move || {
@@ -32,37 +54,26 @@ async fn select_prefix(prefixes: Vec<String>) -> Result<String, Box<dyn std::err
     Ok(selection)
 }
 
-async fn comment() -> (String, String) {
-    let title = task::spawn_blocking(|| {
-        inquire::Text::new("Write your comment:")
-            .with_help_message("Enter the title of your commit")
-            .prompt()
-    }).await.expect("Failed to run blocking code")
-        .unwrap_or_else(|_| {
-            println!("{}", "No comment entered!".red());
-            std::process::exit(1);
-        });
+async fn handle_git_commit(kind: &str, break_changes: &bool, scope: &str, subject: &str, body: &str) -> io::Result<()> {
+    let scope_part = if !scope.is_empty() {
+        format!("({})", scope)
+    } else {
+        String::new()
+    };
 
+    let is_break_change = match &break_changes {
+        true => format!("!"),
+        _ => String::new(),
+    };
 
-    let content = task::spawn_blocking(|| { 
-        inquire::Text::new("Write your description:")
-            .with_help_message("Enter the detailed description of your commit")
-            .prompt()
-    }).await.expect("Failed to run blocking code")
-        .unwrap_or_else(|_| {
-            println!("{}", "No description entered!".red());
-            std::process::exit(1);
-        });
-
-    (title, content)
-}
-
-async fn handle_git_commit(prefix: &str, title: &str, content: &str) -> io::Result<()> {
-    let commit_message = format!("{} {}\n\n{}", prefix, title, content);
+    let commit_message = format!("[{}{}{}] {}", &kind, scope_part, is_break_change, subject);
+    let optional_body = format!("\n{}", body);
     let mut child = Command::new("git")
         .arg("commit")
         .arg("-m")
         .arg(&commit_message)
+        .arg("-m")
+        .arg(&optional_body)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
@@ -125,9 +136,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Failed to convert path to string")?;
 
     let config = Config::from_file(config_path)?;
-    let prefix = select_prefix(config.prefixes).await?;
-    let (title, content) = comment().await;
-    handle_git_commit(&prefix, &title, &content).await?;
+    let kind = select_prefix(config.prefixes).await?;
+    let scope = get_user_input("Scope", "Scope of the change (optional)").await?;
+    let is_break_changes = is_breaking_change().await?;
+    let subject = get_user_input("Subject", "Subject of the change").await?;
+    let body = get_user_input("Body", "Body of the change (optional)").await?;
+    handle_git_commit(&kind, &is_break_changes, &scope, &subject, &body).await?;
 
     Ok(())
 }

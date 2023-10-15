@@ -1,5 +1,6 @@
-# QuickGC: Your Quick Git Commit Assistant
+# QuickGC
 
+**Quick Git Commit Assistant** 
 QuickGC is crafted for developers who seek a streamlined, interactive, and efficient way to commit their code. Say goodbye to the hassle of typing out commit messages and embrace a world where git commits are quick, styled, and consistent.
 
 ## 🚀 Getting Started

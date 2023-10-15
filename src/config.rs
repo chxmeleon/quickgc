@@ -21,13 +21,17 @@ impl Config {
     pub fn create_default_config(file_path: &str) -> io::Result<Config> {
         let default_config = Config {
             prefixes: vec![
-                "[FEATURE]".to_string(),
-                "[BUGFIX]".to_string(),
-                "[BUILD]".to_string(),
-                "[STYLE]".to_string(),
-                "[REFACTOR]".to_string(),
-                "[DOCS]".to_string(),
-                "[TEST]".to_string(),
+                "build".to_string(),
+                "chore".to_string(),
+                "ci".to_string(),
+                "feat".to_string(),
+                "fix".to_string(),
+                "style".to_string(),
+                "refactor".to_string(),
+                "docs".to_string(),
+                "perf".to_string(),
+                "test".to_string(),
+                "revert".to_string(),
             ],
         };
 
