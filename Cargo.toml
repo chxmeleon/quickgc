@@ -1,6 +1,6 @@
 [package]
 name = "quickgc"
-version = "0.1.8"
+version = "0.1.9"
 description = "simple style with git commit comments for personal workflow"
 edition = "2021"
 license = "MIT"

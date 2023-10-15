@@ -137,12 +137,12 @@ async fn handle_git_commit(params: (&str, &bool, &str, &str, &str, &str)) -> io:
     let status = child.wait().await?;
 
     if status.success() {
-        println!("\n{}", "Commit successful!".black().on_green().bold());
+        println!("\n{}", "🟢 Commit successful! ".black().on_green().bold());
         if let Some(stdout_content) = stdout {
             println!("\n{}", stdout_content.white().bold());
         }
     } else {
-        println!("\n{}", "Commit failed!".white().on_red().bold().italic());
+        println!("\n{}", "🔴 Commit failed! ".white().on_red().bold().italic());
         if let Some(stderr_content) = stderr {
             println!("Error:\n{}", stderr_content.white().on_red().bold());
         }
@@ -191,7 +191,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     handle_git_commit(params).await?;
                 }
                 Err(e) => {
-                    println!("{} {}", "❌", format!(" Commit message is invalid: {}. ", e).white().on_red().bold());
+                    println!("{} {}", "🔴", format!(" Commit message is invalid: {}. ", e).white().on_red().bold());
                 }
             }
         } else {
