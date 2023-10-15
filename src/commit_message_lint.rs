@@ -1,6 +1,8 @@
 use regex::Regex;
+use std::error::Error;
 use std::fmt;
 
+#[allow(dead_code)]
 pub struct CommitMessage {
     kind: String,
     scope: Option<String>,
@@ -9,61 +11,75 @@ pub struct CommitMessage {
     footer: Option<String>,
 }
 
-impl fmt::Display for CommitMessage {
+#[derive(Debug)]
+pub enum CommitMessageError {
+    EmptyType,
+    InvalidTypeFormat(String),
+    UpperCaseType,
+    EmptySubject,
+    SubjectEndsWithFullStop,
+    HeaderExceedsMaxLength,
+}
+
+impl fmt::Display for CommitMessageError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.kind)?;
-        if let Some(scope) = &self.scope {
-            write!(f, "({})", scope)?;
+        match self {
+            CommitMessageError::EmptyType => write!(f, "Type is empty"),
+            CommitMessageError::InvalidTypeFormat(pattern) => write!(f, "Invalid type format: {}", pattern),
+            CommitMessageError::UpperCaseType => write!(f, "Type is uppercase"),
+            CommitMessageError::EmptySubject => write!(f, "Subject is empty"),
+            CommitMessageError::SubjectEndsWithFullStop => write!(f, "Subject ends with full stop"),
+            CommitMessageError::HeaderExceedsMaxLength => write!(f, "Header exceeds max length"),
         }
-        write!(f, ": {}", self.subject)?;
-        if let Some(body) = &self.body {
-            write!(f, "\n\n{}", body)?;
-        }
-        if let Some(footer) = &self.footer {
-            write!(f, "\n\n{}", footer)?;
-        }
-        Ok(())
     }
 }
 
+impl Error for CommitMessageError {}
+
 impl CommitMessage {
-    pub fn new(kind: String, scope: Option<String>, subject: String, body: Option<String>, footer: Option<String>) -> Self {
-        Self { kind, scope, subject, body, footer }
+    pub fn new(
+        kind: String,
+        scope: Option<String>,
+        subject: String,
+        body: Option<String>,
+        footer: Option<String>,
+    ) -> Self {
+        Self {
+            kind,
+            scope,
+            subject,
+            body,
+            footer,
+        }
     }
 
-   pub fn is_valid(&self) -> bool {
-        self.is_type_lowercase()
-            && self.is_type_non_empty()
-            // && self.is_subject_case_valid()
-            && self.is_subject_non_empty()
-            && !self.is_subject_end_with_full_stop()
-            && self.is_header_max_length()
+    pub fn validate(&self) -> Result<(), CommitMessageError> {
+        if self.kind.trim().is_empty() {
+            return Err(CommitMessageError::EmptyType);
+        }
+
+        let re = Regex::new(r"^[a-z]+$").unwrap(); 
+        if !re.is_match(&self.kind) {
+            return Err(CommitMessageError::InvalidTypeFormat(r"^[a-z]+$".to_string()));
+        }
+
+        if self.kind.chars().any(|c| c.is_uppercase()) {
+            return Err(CommitMessageError::UpperCaseType);
+        }
+
+        if self.subject.trim().is_empty() {
+            return Err(CommitMessageError::EmptySubject);
+        }
+
+        if self.subject.ends_with('.') {
+            return Err(CommitMessageError::SubjectEndsWithFullStop);
+        }
+
+        let header = format!("{}: {}", self.kind, self.subject);
+        if header.len() > 100 {
+            return Err(CommitMessageError::HeaderExceedsMaxLength);
+        }
+
+        Ok(())
     }
-
-    fn is_type_lowercase(&self) -> bool {
-        self.kind == self.kind.to_lowercase()
-    }
-
-    fn is_type_non_empty(&self) -> bool {
-        !self.kind.is_empty()
-    }
-
-    // fn is_subject_case_valid(&self) -> bool {
-    //     let re = Regex::new(r"^[a-z0-9]+(?:-[a-z0-9]+)*$").unwrap();
-    //     re.is_match(&self.subject)
-    // }
-
-    fn is_subject_non_empty(&self) -> bool {
-        !self.subject.is_empty()
-    }
-
-    fn is_subject_end_with_full_stop(&self) -> bool {
-        self.subject.ends_with('.')
-    }
-
-    fn is_header_max_length(&self) -> bool {
-        let header = format!("{}", self);
-        header.len() <= 100
-    }
-
 }

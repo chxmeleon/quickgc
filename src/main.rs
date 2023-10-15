@@ -18,6 +18,22 @@ fn format_part(condition: bool, true_format: &str, false_format: &str) -> String
     }
 }
 
+
+async fn is_git_add() -> Result<bool, Box<dyn std::error::Error>> {
+    let output = Command::new("git")
+        .arg("status")
+        .output()
+        .await?;
+
+    if !output.status.success() {
+        eprintln!("Git command failed with {:?}", output.status);
+        return Ok(false);
+    }
+
+    let stdout = String::from_utf8(output.stdout)?;
+    Ok(!stdout.contains("Changes not staged for commit"))
+}
+
 async fn get_user_input(prompt: &str, help_message: &str) -> Result<String, Box<dyn std::error::Error>> {
     let prompt = prompt.to_string();
     let help_message = help_message.to_string();
@@ -31,9 +47,11 @@ async fn get_user_input(prompt: &str, help_message: &str) -> Result<String, Box<
     Ok(input)
 }
 
-async fn is_breaking_change() -> Result<bool, Box<dyn std::error::Error>> {
+async fn boolean_question(question: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let prompt = question.to_string();
+
     let input = task::spawn_blocking(move || {
-        inquire::Confirm::new("Is this a breaking change?")
+        inquire::Confirm::new(&prompt)
             .with_default(false)
             .prompt()
     }).await??;
@@ -71,7 +89,7 @@ async fn handle_git_commit(params: (&str, &bool, &str, &str, &str, &str)) -> io:
     let is_break_change_header = format_part(*break_changes, "!", "");
     let is_break_change_foot = format_part(*break_changes, "[BREAKING CHANGE] ", "");
 
-    let header = format!("{}{}{}: {}", kind, scope_part, is_break_change_header, subject);
+    let header = format!("[{}{}{}] {}", kind, scope_part, is_break_change_header, subject);
     let optional_body = format!("\n{}", body);
     let optional_footer = format!("\n{}{}", is_break_change_foot, footer);
 
@@ -144,30 +162,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .to_str()
         .ok_or("Failed to convert path to string")?;
 
-    let config = Config::from_file(config_path)?;
-    let kind = select_kind(config.types).await?;
-    let scope = get_user_input("Scope", "Scope of the change (optional)").await?;
-    let is_break_changes = is_breaking_change().await?;
-    let subject = get_user_input("Subject", "Subject of the change").await?;
-    let body = get_user_input("Body", "Body of the change (optional)").await?;
-    let footer = get_user_input("Footer", "Footer of the change (optional)").await?;
+    let files_staged = is_git_add().await?;
 
-    let params = (&kind[..], &is_break_changes, &scope[..], &subject[..], &body[..], &footer[..]);
-    let lint_result = CommitMessage::new(
-        kind.clone(),
-        Some(scope.clone()),
-        subject.clone(),
-        Some(body.clone()),
-        Some(footer.clone()),
-    );
+    if files_staged {
+        let config = Config::from_file(config_path)?;
+        let is_commit_lint_enabled = boolean_question("Enable commit lint? ").await?;
+        let kind = select_kind(config.types).await?;
+        let scope = get_user_input("Scope: ", "(optional)").await?;
+        let is_break_changes = boolean_question("Is this a breaking change? ").await?;
+        let subject = get_user_input("Subject: ", "must have").await?;
+        let body = get_user_input("Body: ", " (optional)").await?;
+        let footer = get_user_input("Footer: ", "(optional)").await?;
 
-    if lint_result.is_valid() {
-        println!("Commit message is valid.");
-        handle_git_commit(params).await?;
+        let params = (&kind[..], &is_break_changes, &scope[..], &subject[..], &body[..], &footer[..]);
+
+        if is_commit_lint_enabled {
+            let commit_message = CommitMessage::new(
+                kind.clone(),
+                Some(scope.clone()),
+                subject.clone(),
+                Some(body.clone()),
+                Some(footer.clone()),
+            ).validate();
+
+            match commit_message {
+                Ok(_) => {
+                    println!("{} {}", "🟢", " Commit message is valid. ".black().on_green().bold());
+                    handle_git_commit(params).await?;
+                }
+                Err(e) => {
+                    println!("{} {}", "❌", format!(" Commit message is invalid: {}. ", e).white().on_red().bold());
+                }
+            }
+        } else {
+            handle_git_commit(params).await?;
+        }
+
     } else {
-        println!("Commit message is invalid.");
+        println!("\n{} {}", "🟠", " Unstaged file changes detected. ".bright_white().on_yellow().bold())
     }
-
 
     Ok(())
 }
