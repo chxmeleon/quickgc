@@ -1,12 +1,22 @@
 use colored::*;
-use config::Config;
 use dirs::home_dir;
 use tokio::process::Command;
 use tokio::io::{self, BufReader, AsyncBufReadExt};
 use tokio::task;
+use config::Config;
+use commit_message_lint::CommitMessage;
 
 mod config;
+mod commit_message_lint;
 mod render_config;
+
+fn format_part(condition: bool, true_format: &str, false_format: &str) -> String {
+    if condition {
+        true_format.to_string()
+    } else {
+        false_format.to_string()
+    }
+}
 
 async fn get_user_input(prompt: &str, help_message: &str) -> Result<String, Box<dyn std::error::Error>> {
     let prompt = prompt.to_string();
@@ -30,10 +40,10 @@ async fn is_breaking_change() -> Result<bool, Box<dyn std::error::Error>> {
     Ok(input)
 }
 
-async fn select_prefix(prefixes: Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
-    let prefixes_clone = prefixes.clone();
+async fn select_kind(kinds: Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
+    let kinds_clone = kinds.clone();
     let selection = task::spawn_blocking(move || {
-        inquire::Select::new("Select git comment prefix", prefixes).prompt()
+        inquire::Select::new("Select git comment type", kinds).prompt()
     }).await??;
 
     let colors = [
@@ -47,33 +57,32 @@ async fn select_prefix(prefixes: Vec<String>) -> Result<String, Box<dyn std::err
         Color::White,
     ];
 
-    let index = prefixes_clone.iter().position(|p| p == &selection).unwrap_or(0);
+    let index = kinds_clone.iter().position(|p| p == &selection).unwrap_or(0);
     let color = colors.get(index).unwrap_or(&Color::White);
 
     println!("{}", selection.color(*color));
     Ok(selection)
 }
 
-async fn handle_git_commit(kind: &str, break_changes: &bool, scope: &str, subject: &str, body: &str) -> io::Result<()> {
-    let scope_part = if !scope.is_empty() {
-        format!("({})", scope)
-    } else {
-        String::new()
-    };
+async fn handle_git_commit(params: (&str, &bool, &str, &str, &str, &str)) -> io::Result<()> {
+    let (kind, break_changes, scope, subject, body, footer) = params;
 
-    let is_break_change = match &break_changes {
-        true => format!("!"),
-        _ => String::new(),
-    };
+    let scope_part = format_part(!scope.is_empty(), &format!("({})", scope), "");
+    let is_break_change_header = format_part(*break_changes, "!", "");
+    let is_break_change_foot = format_part(*break_changes, "[BREAKING CHANGE] ", "");
 
-    let commit_message = format!("[{}{}{}] {}", &kind, scope_part, is_break_change, subject);
+    let header = format!("{}{}{}: {}", kind, scope_part, is_break_change_header, subject);
     let optional_body = format!("\n{}", body);
+    let optional_footer = format!("\n{}{}", is_break_change_foot, footer);
+
     let mut child = Command::new("git")
         .arg("commit")
         .arg("-m")
-        .arg(&commit_message)
+        .arg(&header)
         .arg("-m")
         .arg(&optional_body)
+        .arg("-m")
+        .arg(&optional_footer)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
@@ -136,12 +145,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Failed to convert path to string")?;
 
     let config = Config::from_file(config_path)?;
-    let kind = select_prefix(config.prefixes).await?;
+    let kind = select_kind(config.types).await?;
     let scope = get_user_input("Scope", "Scope of the change (optional)").await?;
     let is_break_changes = is_breaking_change().await?;
     let subject = get_user_input("Subject", "Subject of the change").await?;
     let body = get_user_input("Body", "Body of the change (optional)").await?;
-    handle_git_commit(&kind, &is_break_changes, &scope, &subject, &body).await?;
+    let footer = get_user_input("Footer", "Footer of the change (optional)").await?;
+
+    let params = (&kind[..], &is_break_changes, &scope[..], &subject[..], &body[..], &footer[..]);
+    let lint_result = CommitMessage::new(
+        kind.clone(),
+        Some(scope.clone()),
+        subject.clone(),
+        Some(body.clone()),
+        Some(footer.clone()),
+    );
+
+    if lint_result.is_valid() {
+        println!("Commit message is valid.");
+        handle_git_commit(params).await?;
+    } else {
+        println!("Commit message is invalid.");
+    }
+
 
     Ok(())
 }

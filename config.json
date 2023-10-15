@@ -1,12 +1,15 @@
 {
-  "prefixes": [
-    "[FEATURE]",
-    "[BUGFIX]",
-    "[BUILD]",
-    "[STYLE]",
-    "[REFACTOR]",
-    "[DOCS]",
-    "[CODEREVIEW]",
-    "[TEST]"
+  "types": [
+    "build",
+    "ci",
+    "docs",
+    "feat",
+    "fix",
+    "perf",
+    "refactor",
+    "revert",
+    "style",
+    "test",
+    "chroe"
   ]
 }

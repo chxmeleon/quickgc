@@ -5,7 +5,7 @@ use std::path::Path;
 
 #[derive(Deserialize, Serialize)]
 pub struct Config {
-    pub prefixes: Vec<String>,
+    pub types: Vec<String>,
 }
 
 impl Config {
@@ -20,7 +20,7 @@ impl Config {
 
     pub fn create_default_config(file_path: &str) -> io::Result<Config> {
         let default_config = Config {
-            prefixes: vec![
+            types: vec![
                 "build".to_string(),
                 "chore".to_string(),
                 "ci".to_string(),
