@@ -3,7 +3,7 @@ use inquire::{
     ui::{Color, RenderConfig, StyleSheet, Styled},
 };
 
-pub fn get_render_config() -> RenderConfig {
+pub fn get_render_config() -> RenderConfig<'static> {
     let mut render_config = RenderConfig::default();
     render_config.prompt_prefix = Styled::new("?").with_fg(Color::DarkGreen);
     render_config.highlighted_option_prefix = Styled::new("❯").with_fg(Color::LightYellow);

@@ -1,10 +1,13 @@
 use colored::*;
+use inquire::{Confirm, Select, Editor, Text,};
 use dirs::home_dir;
 use tokio::process::Command;
 use tokio::io::{self, BufReader, AsyncBufReadExt};
 use tokio::task;
 use config::Config;
 use commit_message_lint::CommitMessage;
+
+
 
 mod config;
 mod commit_message_lint;
@@ -34,14 +37,41 @@ async fn is_git_add() -> Result<bool, Box<dyn std::error::Error>> {
     Ok(!stdout.contains("Changes not staged for commit"))
 }
 
+async fn get_multiline_input(prompt: &str, help_message: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let prompt = prompt.to_string();
+    let help_message = help_message.to_string();
+
+    let input = task::spawn_blocking(move || {
+        Editor::new(&prompt)
+            .with_help_message(&help_message)
+            .with_formatter(&|submission| {
+                let char_count = submission.chars().count();
+                if char_count == 0 {
+                    String::from("<empty>")
+                } else if char_count <= 50 {
+                    submission.into()
+                } else {
+                    let mut substr: String = submission.chars().take(47).collect();
+                    substr.push_str("...");
+                    substr
+                }
+            })
+            .prompt()
+    }).await??;
+
+    Ok(input)
+}
+
+
 async fn get_user_input(prompt: &str, help_message: &str) -> Result<String, Box<dyn std::error::Error>> {
     let prompt = prompt.to_string();
     let help_message = help_message.to_string();
 
     let input = task::spawn_blocking(move || {
-        inquire::Text::new(&prompt)
+        Text::new(&prompt)
             .with_help_message(&help_message)
             .prompt()
+
     }).await??;
 
     Ok(input)
@@ -51,7 +81,7 @@ async fn boolean_question(question: &str) -> Result<bool, Box<dyn std::error::Er
     let prompt = question.to_string();
 
     let input = task::spawn_blocking(move || {
-        inquire::Confirm::new(&prompt)
+        Confirm::new(&prompt)
             .with_default(false)
             .prompt()
     }).await??;
@@ -61,7 +91,7 @@ async fn boolean_question(question: &str) -> Result<bool, Box<dyn std::error::Er
 async fn select_kind(kinds: Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
     let kinds_clone = kinds.clone();
     let selection = task::spawn_blocking(move || {
-        inquire::Select::new("Select git comment type", kinds).prompt()
+        Select::new("Select git comment type", kinds).prompt()
     }).await??;
 
     let colors = [
@@ -90,7 +120,12 @@ async fn handle_git_commit(params: (&str, &bool, &str, &str, &str, &str)) -> io:
     let is_break_change_foot = format_part(*break_changes, "[BREAKING CHANGE] ", "");
 
     let header = format!("{}{}{}: {}", kind, scope_part, is_break_change_header, subject);
-    let optional_body = format!("\nr#{}", body);
+
+    let optional_body = if body.is_empty() {
+        String::new()
+    } else {
+        format!("\n\n{}", body)
+    };
     let optional_footer = format!("\n{}{}", is_break_change_foot, footer);
 
     let mut child = Command::new("git")
@@ -171,7 +206,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let scope = get_user_input("Scope: ", "(optional)").await?;
         let is_break_changes = boolean_question("Is this a breaking change? ").await?;
         let subject = get_user_input("Subject: ", "must have").await?;
-        let body = get_user_input("Body: ", " (optional)").await?;
+        let body = get_multiline_input("Body: ", "Enter commit body (optional, press Esc then Enter to finish)").await?;
         let footer = get_user_input("Footer: ", "(optional)").await?;
 
         let params = (&kind[..], &is_break_changes, &scope[..], &subject[..], &body[..], &footer[..]);
