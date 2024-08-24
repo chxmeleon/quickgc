@@ -90,7 +90,7 @@ async fn handle_git_commit(params: (&str, &bool, &str, &str, &str, &str)) -> io:
     let is_break_change_foot = format_part(*break_changes, "[BREAKING CHANGE] ", "");
 
     let header = format!("{}{}{}: {}", kind, scope_part, is_break_change_header, subject);
-    let optional_body = format!("\n{}", body);
+    let optional_body = format!("\nr#{}", body);
     let optional_footer = format!("\n{}{}", is_break_change_foot, footer);
 
     let mut child = Command::new("git")
